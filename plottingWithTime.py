@@ -2,19 +2,19 @@ import pygame
 import sys
 import math
 import numpy as np
+from calculator_parser import parser
+from calculator_output import SyntaxAnalysis
 
-########## - Make pi button functional
-# TO DO  # - Make tan button functional
-########## - Make t button function (ie. add graphing capability using time)
-
-# Defining constants(colors, widths, etc..) 
-black = (0,0,0)
-white = (255,255,255)
-grey = (150,150,150)
-dark_grey = (100,100,100)
-light_grey = (200,200,200)
+# Defining constants(colors, widths, etc..)
+black = (0, 0, 0)
+white = (255, 255, 255)
+grey = (150, 150, 150)
+dark_grey = (100, 100, 100)
+light_grey = (200, 200, 200)
 graph_color = (37, 150, 190)
 line_width = 2
+pi = math.pi
+origin = (100, 250)
 
 # Initializing pygame
 pygame.init()
@@ -24,11 +24,12 @@ clock = pygame.time.Clock()
 input_box = pygame.Rect(350, 460, 300, 32)
 outline_input_box = pygame.Rect(350, 460, 300, 32)
 input_active = False
-text = [' ']
+text = [' ', 'y', '=']
 
 # Setting up input buttons
 buttons_active = [False for i in range(25)]
-buttons_box = [pygame.Rect(960+i*58, 10+j*78, 48, 48) for j in range(5) for i in range(5)]
+buttons_box = [pygame.Rect(960+i*58, 10+j*78, 48, 48)
+               for j in range(5) for i in range(5)]
 
 # The function we are currently plotting
 function_to_plot = ''
@@ -37,7 +38,7 @@ prev_function_to_plot = ''
 # Creating the screen
 max_x = 750
 max_y = 180
-screen_height = 500 
+screen_height = 500
 screen_width = 1000+250
 screen = pygame.display.set_mode((screen_width, screen_height))
 pygame.display.set_caption("Graphing software")
@@ -46,83 +47,33 @@ pygame.display.set_caption("Graphing software")
 pi_img = pygame.image.load("pi.png")
 pi_img = pygame.transform.scale(pi_img, (22, 22))
 
-# Initializing fonts 
+# Initializing fonts
 x_y_font = pygame.font.Font('freesansbold.ttf', 12)
 input_font = pygame.font.Font(None, 27)
 button_font = pygame.font.Font(None, 42)
 x_text = x_y_font.render('x', True, black, white)
 y_text = x_y_font.render('y', True, black, white)
 
-def string_to_tupple(function_to_plot): 
-
-    if function_to_plot=='' or not '=' in function_to_plot: 
+# given a string, output [list of x coordinates, list of y coordinates]
+def plot_input(string):
+    try:
+        parsed_function = parser.parse(string)
+        x = np.arange(0,2*pi*3, 0.01)
+        sa = SyntaxAnalysis(x, parsed_function)
+        x = x * 42.5
+        y = sa.output(0)
+        return [origin[0]+int(i) for i in x], [origin[1]-int(i) for i in y]
+    except Exception as err: 
         return -1
 
-    left, right = function_to_plot[:function_to_plot.index("=")], function_to_plot[function_to_plot.index("=")+1:]
-
-    if not "y" in left:
-        return -1
-
-    func = ''
-    amplitude = 1 
-    phase_shift = 0 
-    frequency = 1
-    for i in range(len(right)):
-        if right[i]=='cos' or right[i]=='sin':
-            plus_min = "+"
-            if i==1: 
-                amplitude= float(right[0])
-            if i==2:
-                amplitude = float(right[0]+right[1])
-            func = right[i]
-            if not 'x' in right[i:]:
-                return -1
-            e_right = right[i+2:-1]
-            if not '+' in e_right and not '-' in e_right:
-                if len(e_right)==1:
-                    break
-                else:
-                    frequency = float(e_right[0])
-                    break
-            if '-' in right[i+2:-1]:
-                plus_min = '-'
-            
-            pm_i = e_right.index(plus_min)
-            x_i = e_right.index('x')
-            if pm_i>x_i:
-                if x_i!=0:
-                    frequency = float(e_right[x_i-1])
-                phase_shift = float(plus_min+e_right[-1])
-            else:
-                phase_shift = float(plus_min+e_right[0])
-                if x_i-1!=pm_i:
-                    frequency = float(e_right[x_i-1])
-
-    if func!='':
-        return frequency, amplitude, phase_shift, func
-    return -1
-
-# Graph sin/cos function (y = Amplitude*sin/cos(frequency*x+phase_shift))
-def get_sin_x_y(origin, max_x, max_y, frequency, amplitude, phase_shift, sin_cos):
-    pi = math.pi
-    phase_shift = phase_shift if sin_cos=='sin' else phase_shift+pi/2
-    x = np.arange(0,2*pi*frequency, 0.01)
-    func = np.vectorize(math.sin)
-    y = func(x+phase_shift)
-    x = origin[0]+max_x*1/(2*pi*frequency)*x
-    y = origin[1]-amplitude*y
-    func = np.vectorize(int)
-    x = func(x)
-    y = func(y)
-    return x, y
-
-# Drawing the buttons of the calculator
+# Draws the buttons
 def drawButton(screen):
-    pygame.draw.rect(screen, (50,50,50), (950,0,300,500))
+    pygame.draw.rect(screen, (50, 50, 50), (950, 0, 300, 500))
     for j in range(5):
         for i in range(5):
             button_color = grey
-            if buttons_active[j*5+i]: button_color=light_grey
+            if buttons_active[j*5+i]:
+                button_color = light_grey
             pygame.draw.rect(screen, button_color, (960+i*58, 10+j*78, 48, 48))
 
     # First row
@@ -160,7 +111,6 @@ def drawButton(screen):
     dot_button = button_font.render(".", True, black)
     screen.blit(dot_button, (1211, 176))
 
-
     # Fourth row
     zero_button = button_font.render("0", True, black)
     screen.blit(zero_button, (975, 257))
@@ -185,6 +135,7 @@ def drawButton(screen):
     nine_button = button_font.render("9", True, black)
     screen.blit(nine_button, (1210, 335))
 
+
 # Graphing function
 def graph(screen):
     # Declaring global var
@@ -194,34 +145,35 @@ def graph(screen):
     drawButton(screen)
 
     # X-axis
-    pygame.draw.line(screen, black, (100, 250), (900, 250), width = line_width)
-    pygame.draw.polygon(screen, black, ((900,248),(900, 254), (903, 251)))
-    screen.blit(x_text, (907,257))
-    for i in range(1,7):
-        pygame.draw.line(screen, black, (99+i*max_x/(2*math.pi),246), (99+i*max_x/(2*math.pi),256), width = line_width)
+    pygame.draw.line(screen, black, (100, 250), (900, 250), width=line_width)
+    pygame.draw.polygon(screen, black, ((900, 248), (900, 254), (903, 251)))
+    screen.blit(x_text, (907, 257))
+    for i in range(1, 7):
+        pygame.draw.line(screen, black, (99+i*max_x/(2*math.pi), 246),
+                         (99+i*max_x/(2*math.pi), 256), width=line_width)
 
     # Y-axis
-    pygame.draw.line(screen, black, (100, 50), (100, 450), width = line_width)
-    pygame.draw.polygon(screen, black, ((98,50), (104, 50), (101,47)))
-    pygame.draw.polygon(screen, black, ((98,450), (104, 450), (101,453)))
-    screen.blit(y_text, (107,40))
+    pygame.draw.line(screen, black, (100, 50), (100, 450), width=line_width)
+    pygame.draw.polygon(screen, black, ((98, 50), (104, 50), (101, 47)))
+    pygame.draw.polygon(screen, black, ((98, 450), (104, 450), (101, 453)))
+    screen.blit(y_text, (107, 40))
 
     # Drawing input box and input
     box_color = light_grey if input_active else grey
     pygame.draw.rect(screen, box_color, input_box)
-    pygame.draw.rect(screen, dark_grey, outline_input_box, width = line_width)
+    pygame.draw.rect(screen, dark_grey, outline_input_box, width=line_width)
     function_text = input_font.render("".join(text), True, black)
     screen.blit(function_text, (350, 467))
 
-    # Draw math function 
+    # Draw math function
     if input_active:
         function_to_plot = prev_function_to_plot
     else:
         prev_function_to_plot = function_to_plot
 
-    input_function = string_to_tupple(function_to_plot)
-    if type(input_function)!=int:
-        x, y = get_sin_x_y((100, 250), max_x, max_y, input_function[0], input_function[1], input_function[2], input_function[3])
+    input_function = plot_input("".join(function_to_plot[3:]))
+    if type(input_function) == tuple:
+        x, y = input_function
         for i in range(len(x)):
             pygame.draw.circle(screen, graph_color, (x[i], y[i]), 1)
 
@@ -238,67 +190,67 @@ while True:
                 input_active = True
             if buttons_box[0].collidepoint(event.pos):
                 text.append('y')
-                buttons_active[0]= True
+                buttons_active[0] = True
             if buttons_box[1].collidepoint(event.pos):
                 text.append('x')
-                buttons_active[1]= True
+                buttons_active[1] = True
             if buttons_box[2].collidepoint(event.pos):
                 text.append('t')
-                buttons_active[2]= True
+                buttons_active[2] = True
             if buttons_box[3].collidepoint(event.pos):
                 text.append('(')
-                buttons_active[3]= True
+                buttons_active[3] = True
             if buttons_box[4].collidepoint(event.pos):
                 text.append(')')
-                buttons_active[4]= True
+                buttons_active[4] = True
             if buttons_box[5].collidepoint(event.pos):
                 text.append('=')
-                buttons_active[5]= True
+                buttons_active[5] = True
             if buttons_box[6].collidepoint(event.pos):
                 text.append('+')
-                buttons_active[6]= True
+                buttons_active[6] = True
             if buttons_box[7].collidepoint(event.pos):
                 text.append('-')
-                buttons_active[7]= True
+                buttons_active[7] = True
             if buttons_box[8].collidepoint(event.pos):
                 text.append('/')
-                buttons_active[8]= True
+                buttons_active[8] = True
             if buttons_box[9].collidepoint(event.pos):
                 text.append('*')
-                buttons_active[9]= True
+                buttons_active[9] = True
             if buttons_box[10].collidepoint(event.pos):
                 text.append('cos')
-                buttons_active[10]= True
+                buttons_active[10] = True
             if buttons_box[11].collidepoint(event.pos):
                 text.append('sin')
-                buttons_active[11]= True
+                buttons_active[11] = True
             if buttons_box[12].collidepoint(event.pos):
                 text.append('tan')
-                buttons_active[12]= True
+                buttons_active[12] = True
             if buttons_box[13].collidepoint(event.pos):
                 text.append('(pi)')
-                buttons_active[13]= True
+                buttons_active[13] = True
             if buttons_box[14].collidepoint(event.pos):
-                if '0'<=text[-1] and '9'>=text[-1]:
-                    text[-1]+= '.'
+                if '0' <= text[-1] and '9' >= text[-1]:
+                    text[-1] += '.'
                 else:
                     text.append('.')
-                buttons_active[14]= True
+                buttons_active[14] = True
             for i in range(15, 25):
                 if buttons_box[i].collidepoint(event.pos):
-                    if '0'<=text[-1] and '9'>=text[-1]  or text[-1]=='.':
-                        text[-1]+= str(i-15)
+                    if '0' <= text[-1] and '9' >= text[-1] or text[-1] == '.':
+                        text[-1] += str(i-15)
                     else:
                         text.append(str(i-15))
-                    buttons_active[i]= True
+                    buttons_active[i] = True
         if event.type == pygame.KEYDOWN:
             if input_active:
                 if event.key == pygame.K_RETURN:
                     input_active = False
                     function_to_plot = text
                 elif event.key == pygame.K_BACKSPACE:
-                    text = text[:-1]
-                    if text==[]: text=[" "]
+                    if len(text) > 3:
+                        text = text[:-1]
                 elif event.unicode == '(':
                     text.append(event.unicode)
                     buttons_active[3] = True
@@ -321,14 +273,14 @@ while True:
                     text.append(event.unicode)
                     buttons_active[9] = True
                 elif event.unicode == '.':
-                    if '0'<=text[-1] and '9'>=text[-1]:
-                        text[-1]+= '.'
+                    if '0' <= text[-1] and '9' >= text[-1]:
+                        text[-1] += '.'
                     else:
                         text.append('.')
                     buttons_active[14] = True
                 elif event.key == pygame.K_0 or event.key == pygame.K_1 or event.key == pygame.K_2 or event.key == pygame.K_3 or event.key == pygame.K_4 or event.key == pygame.K_5 or event.key == pygame.K_6 or event.key == pygame.K_7 or event.key == pygame.K_8 or event.key == pygame.K_9:
-                    if ('0'<=text[-1] and '9'>=text[-1]) or text[-1]=='.':
-                        text[-1]+= event.unicode
+                    if ('0' <= text[-1] and '9' >= text[-1]) or text[-1] == '.':
+                        text[-1] += event.unicode
                     else:
                         text.append(event.unicode)
                     buttons_active[15+int(event.unicode)] = True
@@ -342,21 +294,21 @@ while True:
                     text.append(event.unicode)
                     buttons_active[2] = True
 
-                if input_font.render("".join(text), True, black).get_width()>300:
+                if input_font.render("".join(text), True, black).get_width() > 300:
                     text = text[:-1]
-       
+
     # Resetting old screen
     screen.fill(white)
 
     # Graphing
     graph(screen)
-    
-    # Resetting buttons    
-    if c==3:
-        c=0     
+
+    # Resetting buttons
+    if c == 3:
+        c = 0
         buttons_active = [False for i in range(25)]
 
     # Setting time between frames
-    c+=1
+    c += 1
     clock.tick(15)
     pygame.display.update()
