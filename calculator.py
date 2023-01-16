@@ -15,6 +15,7 @@ graph_color = (37, 150, 190)
 line_width = 2
 pi = math.pi
 origin = (100, 250)
+time_t = 0
 
 # Initializing pygame
 pygame.init()
@@ -61,7 +62,7 @@ def plot_input(string):
         x = np.arange(0,2*pi*3, 0.01)
         sa = SyntaxAnalysis(x, parsed_function)
         x = x * 42.5
-        y = sa.output(0)
+        y = sa.output(time_t)
         return [origin[0]+int(i) for i in x], [origin[1]-int(i) for i in y]
     except Exception as err: 
         return -1
@@ -307,8 +308,10 @@ while True:
     if c == 3:
         c = 0
         buttons_active = [False for i in range(25)]
+        time_t+=1
 
     # Setting time between frames
     c += 1
     clock.tick(15)
+
     pygame.display.update()
