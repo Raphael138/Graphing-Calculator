@@ -2,7 +2,7 @@
 
 ## Libraries
 
-It uses PLY in order to interpret the input text and pygame to draw the graphics.
+It uses PLY in order to interpret the input text and pygame to draw the graphics. Note that I used `match` and `case` keywords which are only available in python 3.10 and above.
 
 ## File Architecture
 1. `calculator_lexer.py` is the lexer file
